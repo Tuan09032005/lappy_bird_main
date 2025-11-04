@@ -1,0 +1,22 @@
+name: flappy_full
+description: Flappy Bird Complete
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flame: ^1.32.0
+  audioplayers: ^6.0.0
+  flame_audio: ^2.1.3
+  sqflite: ^2.2.8+4
+  path: ^1.8.4
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/audio/
