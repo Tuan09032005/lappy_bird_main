@@ -1,10 +1,9 @@
 import 'dart:math';
-import 'dart:ui' show lerpDouble;
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
 import 'package:flame/input.dart';
-import 'package:flutter/material.dart';
 import 'package:flame_audio/flame_audio.dart';
+import 'package:flutter/material.dart';
 
 import 'bird.dart';
 import 'pipe.dart';
@@ -17,7 +16,6 @@ class FlappyGame extends FlameGame with TapDetector {
   late SpriteComponent ground;
   late Bird bird;
   final List<PipePair> pipes = [];
-  final ValueNotifier<bool> showTrophy = ValueNotifier<bool>(true);
 
   double pipeTimer = 0;
   int score = 0;
@@ -30,6 +28,9 @@ class FlappyGame extends FlameGame with TapDetector {
 
   Map<int, Sprite> numberSprites = {};
   List<SpriteComponent> scoreDigits = [];
+
+  // Trophy button
+  late HudButtonComponent trophyButton;
 
   @override
   Future<void> onLoad() async {
@@ -50,13 +51,8 @@ class FlappyGame extends FlameGame with TapDetector {
 
     await loadNumberSprites();
 
-    // preload âm thanh để không bị delay
-    FlameAudio.audioCache.loadAll([
-      'wing.wav',
-      'hit.wav',
-      'point.wav',
-      'die.wav',
-    ]);
+    // preload âm thanh
+    FlameAudio.audioCache.loadAll(['wing.wav','hit.wav','point.wav','die.wav']);
 
     background = SpriteComponent()
       ..sprite = await loadSprite('background-day.png')
@@ -87,15 +83,29 @@ class FlappyGame extends FlameGame with TapDetector {
       ..priority = 15;
     messageText.position = size / 2 - messageText.size / 2;
 
+    // Trophy button (Flame HudButtonComponent)
+    trophyButton = HudButtonComponent(
+      button: SpriteComponent(
+        sprite: await loadSprite('trophy.png'),
+        size: Vector2(48,48),
+      ),
+      onPressed: () {
+        overlays.add('leaderboard_overlay');
+      },
+      position: Vector2(size.x - 60, size.y - 60),
+      size: Vector2(48,48),
+      priority: 50,
+    );
+
     add(background);
-    add(bird);
     add(ground);
+    add(bird);
     add(messageText);
     add(gameOverText);
+    add(trophyButton);
 
     // Lấy best score khi game bắt đầu
     bestScore = await DBHelper().getBestScore();
-    showTrophy.value = true;
   }
 
   Future<void> loadNumberSprites() async {
@@ -155,7 +165,9 @@ class FlappyGame extends FlameGame with TapDetector {
     gameOverText.opacity = 0;
     updateScoreDisplay();
     bird.resumeAnimation();
-    showTrophy.value = false;
+
+    // ẩn trophy khi chơi
+    trophyButton.removeFromParent();
   }
 
   void restartGame() {
@@ -181,7 +193,9 @@ class FlappyGame extends FlameGame with TapDetector {
     scoreDigits.clear();
     overlays.remove('game_over_overlay');
     bird.resumeAnimation();
-    showTrophy.value = true;
+
+    // hiện trophy trở lại
+    add(trophyButton);
   }
 
   Future<void> endGame() async {
@@ -191,24 +205,20 @@ class FlappyGame extends FlameGame with TapDetector {
     gameOverText.opacity = 1;
 
     final db = DBHelper();
-    await db.updateBestScore(score); // chỉ update nếu cao hơn
-    bestScore = await db.getBestScore(); // đọc lại giá trị hiện tại
+    await db.updateBestScore(score);
+    bestScore = await db.getBestScore();
 
     overlays.add('game_over_overlay');
     FlameAudio.play('die.wav');
   }
 
-
   void updateScoreDisplay() {
-    for (var digit in scoreDigits) {
-      remove(digit);
-    }
+    for (var digit in scoreDigits) remove(digit);
     scoreDigits.clear();
 
     String scoreStr = score.toString();
     const digitWidth = 24.0;
     const digitHeight = 36.0;
-
     double totalWidth = scoreStr.length * digitWidth;
     double startX = (size.x - totalWidth) / 2;
     double posY = size.y * 0.1;
@@ -221,7 +231,6 @@ class FlappyGame extends FlameGame with TapDetector {
         position: Vector2(startX + i * digitWidth, posY),
         priority: 20,
       );
-
       scoreDigits.add(digitComp);
       add(digitComp);
     }
@@ -248,13 +257,13 @@ class FlappyGame extends FlameGame with TapDetector {
     await add(bottomPipe);
     bottomPipe.build(bottomHeight);
 
-    final pair = PipePair(topPipe, bottomPipe);
-    pipes.add(pair);
+    pipes.add(PipePair(topPipe, bottomPipe));
   }
 
   @override
   void onTap() {
     if (!isStarted) {
+      remove(messageText); // bỏ message khỏi màn hình
       startGame();
     } else if (isGameOver) {
       restartGame();
