@@ -20,7 +20,7 @@ void main() async {
           final g = game as FlappyGame;
           return GameOverOverlay(
             score: g.score,
-            bestScore: g.score,
+            bestScore: g.bestScore, // hiển thị đúng best score thực tế
             onRestart: () {
               g.restartGame();
               g.overlays.remove('game_over_overlay');

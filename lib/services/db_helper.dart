@@ -26,34 +26,35 @@ class DBHelper {
             score INTEGER NOT NULL
           );
         ''');
-        // ensure at least one row exists
+
+        // Đảm bảo có ít nhất 1 hàng tồn tại
         await db.insert('highscore', {'score': 0});
       },
     );
 
-    // After opening DB, ensure migration: consolidate multiple rows into a single row (keep MAX)
+    // Dọn dẹp dữ liệu cũ nếu có nhiều dòng (hợp nhất giữ lại điểm cao nhất)
     await _migrateIfNeeded(db);
 
     return db;
   }
 
-  // If table contains more than 1 row (old behavior), consolidate into single row with MAX(score)
+  // Hợp nhất nếu có nhiều hàng — giữ lại điểm cao nhất duy nhất
   Future<void> _migrateIfNeeded(Database db) async {
     final rows = await db.query('highscore');
-    if (rows.length <= 1) return; // nothing to do
+    if (rows.length <= 1) return; // Không cần làm gì
 
-    // compute max score among all rows
+    // Tính điểm cao nhất
     final res = await db.rawQuery('SELECT MAX(score) as maxScore FROM highscore');
-    final maxScore = (res.isNotEmpty && res.first['maxScore'] != null) ? (res.first['maxScore'] as num).toInt() : 0;
+    final maxScore = (res.isNotEmpty && res.first['maxScore'] != null)
+        ? (res.first['maxScore'] as num).toInt()
+        : 0;
 
-    // delete all rows
+    // Xóa toàn bộ và chèn lại 1 hàng duy nhất
     await db.delete('highscore');
-
-    // insert single consolidated row with maxScore
     await db.insert('highscore', {'score': maxScore});
   }
 
-  /// Lấy best score hiện tại (trả về 0 nếu bảng trống)
+  /// Lấy best score hiện tại (trả về 0 nếu chưa có)
   Future<int> getBestScore() async {
     final db = await database;
     final res = await db.query('highscore', limit: 1);
@@ -67,18 +68,24 @@ class DBHelper {
   Future<void> updateBestScore(int newScore) async {
     final db = await database;
     final current = await getBestScore();
+
     if (newScore > current) {
-      // update the existing single row
       final rows = await db.query('highscore', limit: 1);
       if (rows.isNotEmpty) {
-        await db.update('highscore', {'score': newScore}, where: 'rowid = ?', whereArgs: [rows.first['rowid'] ?? 1]);
+        final id = rows.first['id'] as int;
+        await db.update(
+          'highscore',
+          {'score': newScore},
+          where: 'id = ?',
+          whereArgs: [id],
+        );
       } else {
         await db.insert('highscore', {'score': newScore});
       }
     }
   }
 
-  /// Reset (dev only)
+  /// Đặt lại điểm (dành cho developer test)
   Future<void> resetScore() async {
     final db = await database;
     await db.delete('highscore');
