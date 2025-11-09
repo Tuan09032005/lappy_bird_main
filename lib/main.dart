@@ -1,9 +1,15 @@
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'game/flappy_game.dart';
-import 'game/game_over_overlay.dart'; // import overlay
+import 'game/game_over_overlay.dart';
+import 'supabase_config.dart'; // ✅ Thêm dòng này
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ Khởi tạo Supabase
+  await SupabaseManager().init();
+
   final flappyGame = FlappyGame();
 
   runApp(
@@ -14,7 +20,7 @@ void main() {
           final g = game as FlappyGame;
           return GameOverOverlay(
             score: g.score,
-            bestScore: g.bestScore,
+            bestScore: g.score,
             onRestart: () {
               g.restartGame();
               g.overlays.remove('game_over_overlay');

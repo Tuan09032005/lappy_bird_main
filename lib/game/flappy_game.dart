@@ -6,14 +6,11 @@ import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:flame_audio/flame_audio.dart';
 
-
 import 'bird.dart';
 import 'pipe.dart';
 import 'pipe_pair.dart';
 import 'game_over_overlay.dart';
-import 'db_helper.dart';
-
-
+import '../services/db_helper.dart';
 
 class FlappyGame extends FlameGame with TapDetector {
   late SpriteComponent background;
@@ -26,6 +23,7 @@ class FlappyGame extends FlameGame with TapDetector {
   int bestScore = 0;
   bool isStarted = false;
   bool isGameOver = false;
+
   late SpriteComponent gameOverText;
   late SpriteComponent messageText;
 
@@ -50,7 +48,7 @@ class FlappyGame extends FlameGame with TapDetector {
 
     await loadNumberSprites();
 
-    // toi uu audio
+    // preload âm thanh để không bị delay
     FlameAudio.audioCache.loadAll([
       'wing.wav',
       'hit.wav',
@@ -87,11 +85,14 @@ class FlappyGame extends FlameGame with TapDetector {
       ..priority = 15;
     messageText.position = size / 2 - messageText.size / 2;
 
-    add(messageText);
     add(background);
     add(bird);
     add(ground);
+    add(messageText);
     add(gameOverText);
+
+    // Lấy best score khi game bắt đầu
+    bestScore = await DBHelper().getBestScore();
   }
 
   Future<void> loadNumberSprites() async {
@@ -117,7 +118,6 @@ class FlappyGame extends FlameGame with TapDetector {
       return p.offScreen;
     });
 
-
     for (final pipe in pipes) {
       if (pipe.collides(bird)) {
         FlameAudio.play('hit.wav');
@@ -126,12 +126,8 @@ class FlappyGame extends FlameGame with TapDetector {
       }
     }
 
-    if (bird.position.y > ground.position.y - bird.size.y / 2) {
-      FlameAudio.play('hit.wav');
-      endGame();
-    }
-
-    if (bird.position.y < 0) {
+    if (bird.position.y > ground.position.y - bird.size.y / 2 ||
+        bird.position.y < 0) {
       FlameAudio.play('hit.wav');
       endGame();
     }
@@ -156,7 +152,6 @@ class FlappyGame extends FlameGame with TapDetector {
     gameOverText.opacity = 0;
     updateScoreDisplay();
     bird.resumeAnimation();
-
   }
 
   void restartGame() {
@@ -184,20 +179,20 @@ class FlappyGame extends FlameGame with TapDetector {
     bird.resumeAnimation();
   }
 
-  void endGame() async {
+  Future<void> endGame() async {
+    if (isGameOver) return;
     isGameOver = true;
     bird.stopAnimation();
     gameOverText.opacity = 1;
 
-
-    await DBHelper().insertScore(score);
-
-
-    bestScore = await DBHelper().getBestScore();
+    final db = DBHelper();
+    await db.updateBestScore(score); // chỉ update nếu cao hơn
+    bestScore = await db.getBestScore(); // đọc lại giá trị hiện tại
 
     overlays.add('game_over_overlay');
     FlameAudio.play('die.wav');
   }
+
 
   void updateScoreDisplay() {
     for (var digit in scoreDigits) {
@@ -263,8 +258,6 @@ class FlappyGame extends FlameGame with TapDetector {
       FlameAudio.play('wing.wav');
     }
   }
-  int getHighScore() {
-    return 0; // sau này sẽ dùng SQLite, bây giờ tạm thời luôn là 0
-  }
 
+  int getHighScore() => bestScore;
 }
