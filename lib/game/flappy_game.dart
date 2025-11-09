@@ -17,6 +17,7 @@ class FlappyGame extends FlameGame with TapDetector {
   late SpriteComponent ground;
   late Bird bird;
   final List<PipePair> pipes = [];
+  final ValueNotifier<bool> showTrophy = ValueNotifier<bool>(true);
 
   double pipeTimer = 0;
   int score = 0;
@@ -42,6 +43,7 @@ class FlappyGame extends FlameGame with TapDetector {
       'yellowbird-downflap.png',
       'gameover.png',
       'message.png',
+      'trophy.png',
       '0.png','1.png','2.png','3.png','4.png','5.png','6.png','7.png','8.png','9.png',
       'm0.png','m1.png','m2.png'
     ]);
@@ -93,6 +95,7 @@ class FlappyGame extends FlameGame with TapDetector {
 
     // Lấy best score khi game bắt đầu
     bestScore = await DBHelper().getBestScore();
+    showTrophy.value = true;
   }
 
   Future<void> loadNumberSprites() async {
@@ -152,6 +155,7 @@ class FlappyGame extends FlameGame with TapDetector {
     gameOverText.opacity = 0;
     updateScoreDisplay();
     bird.resumeAnimation();
+    showTrophy.value = false;
   }
 
   void restartGame() {
@@ -177,6 +181,7 @@ class FlappyGame extends FlameGame with TapDetector {
     scoreDigits.clear();
     overlays.remove('game_over_overlay');
     bird.resumeAnimation();
+    showTrophy.value = true;
   }
 
   Future<void> endGame() async {
